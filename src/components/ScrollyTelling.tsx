@@ -154,7 +154,7 @@ const ScrollyTelling = () => {
     <section
       ref={containerRef}
       className="relative w-full bg-black"
-      style={{ height: "600vh" }}
+      style={{ height: "400vh" }}
     >
       {/* Sticky full-screen viewport — 100svh for mobile browser bar compat */}
       <div
@@ -169,35 +169,24 @@ const ScrollyTelling = () => {
           style={{ display: "block", zIndex: 0 }}
         />
 
-        {/* Cinematic vignette — vertical */}
+        {/* Cinematic vignette — strong bottom shelf for text, soft top for depth */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             zIndex: 2,
-            background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 45%, rgba(0,0,0,0.45) 100%)",
-          }}
-        />
-        {/* Cinematic vignette — horizontal (left side for text readability) */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            zIndex: 2,
-            background: "linear-gradient(to right, rgba(0,0,0,0.65) 0%, transparent 60%)",
+            background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 30%, transparent 55%, rgba(0,0,0,0.3) 100%)",
           }}
         />
 
-        {/* ── Text overlay ── */}
-        {/* 
-          Desktop: vertically centered (items-center)
-          Mobile: positioned toward bottom-third to avoid navbar + leave room for instrument visual 
-        */}
+        {/* ── Text overlay — anchored to bottom so animation stays visible ── */}
         <div
-          className="absolute inset-0 flex items-end sm:items-center pointer-events-none"
+          className="absolute bottom-0 left-0 right-0 pointer-events-none"
           style={{
             zIndex: 10,
             paddingLeft: "clamp(20px, 6vw, 10%)",
             paddingRight: "clamp(20px, 6vw, 10%)",
-            paddingBottom: "clamp(60px, 12vh, 120px)",
+            paddingBottom: "clamp(28px, 5vh, 60px)",
+            paddingTop: "clamp(20px, 4vh, 40px)",
           }}
         >
           <div
@@ -205,7 +194,7 @@ const ScrollyTelling = () => {
               maxWidth: "640px",
               width: "100%",
               opacity: phaseOpacity,
-              transform: `translateY(${(1 - phaseOpacity) * 25}px)`,
+              transform: `translateY(${(1 - phaseOpacity) * 20}px)`,
               transition: "opacity 0.15s ease-out, transform 0.15s ease-out",
             }}
           >
@@ -213,11 +202,11 @@ const ScrollyTelling = () => {
             <p
               className={inter.className}
               style={{
-                fontSize: "clamp(0.65rem, 1.5vw, 0.875rem)",
+                fontSize: "clamp(0.6rem, 1.5vw, 0.8rem)",
                 textTransform: "uppercase",
                 letterSpacing: "0.2em",
-                color: "rgba(255,255,255,0.45)",
-                marginBottom: "clamp(8px, 2vw, 16px)",
+                color: "rgba(255,255,255,0.5)",
+                marginBottom: "clamp(6px, 1.5vw, 12px)",
               }}
             >
               {phase.sub}
@@ -227,13 +216,13 @@ const ScrollyTelling = () => {
             <h2
               className={inter.className}
               style={{
-                fontSize: "clamp(2.5rem, 12vw, 9rem)",
+                fontSize: "clamp(2rem, 8vw, 5.5rem)",
                 fontWeight: 700,
                 color: "#fff",
-                letterSpacing: "-0.04em",
-                lineHeight: 0.9,
+                letterSpacing: "-0.03em",
+                lineHeight: 0.95,
                 textTransform: "uppercase",
-                textShadow: "0 4px 40px rgba(0,0,0,0.7)",
+                textShadow: "0 2px 30px rgba(0,0,0,0.8)",
                 whiteSpace: "pre-line",
               }}
             >
@@ -244,13 +233,13 @@ const ScrollyTelling = () => {
             <p
               className={inter.className}
               style={{
-                fontSize: "clamp(0.875rem, 2.2vw, 1.25rem)",
-                color: "rgba(255,255,255,0.6)",
-                marginTop: "clamp(12px, 3vw, 24px)",
+                fontSize: "clamp(0.8rem, 1.8vw, 1.1rem)",
+                color: "rgba(255,255,255,0.55)",
+                marginTop: "clamp(8px, 2vw, 16px)",
                 fontWeight: 300,
-                lineHeight: 1.65,
-                maxWidth: "480px",
-                textShadow: "0 2px 16px rgba(0,0,0,0.5)",
+                lineHeight: 1.6,
+                maxWidth: "440px",
+                textShadow: "0 1px 12px rgba(0,0,0,0.6)",
               }}
             >
               {phase.desc}
