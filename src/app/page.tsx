@@ -7,7 +7,7 @@ import ContactForm from "@/components/ContactForm";
 
 export default function Home() {
   return (
-    <main className="bg-black min-h-screen w-full flex flex-col overflow-x-hidden text-white selection:bg-white selection:text-black relative">
+    <main className="bg-black min-h-screen w-full flex flex-col overflow-x-clip text-white selection:bg-white selection:text-black relative">
       <Navbar />
       
       <div id="hero" className="relative z-0">

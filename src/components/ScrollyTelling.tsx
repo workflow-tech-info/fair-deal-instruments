@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Inter } from "next/font/google";
-import { useScroll, useMotionValueEvent, useTransform, motion } from "framer-motion";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,201 +10,325 @@ const inter = Inter({
 
 const padZero = (num: number) => num.toString().padStart(3, "0");
 
+/* ── Text phases configuration ── */
+const PHASES = [
+  { title: "MAPPED.", sub: "The Blueprint", desc: "Every curve of your instrument — veena, guitar, violin — digitally scanned and mapped in our Chennai workshop." },
+  { title: "METERED.", sub: "Precision Engineering", desc: "Tolerances measured to the millimetre. Each stand is dimensionally locked to cradle your instrument with zero play." },
+  { title: "CRAFTED.", sub: "Handcrafted in Chennai", desc: "Born in Tamil Nadu steel mills, shaped by artisan hands. Fair Deal stands carry decades of Chennai craftsmanship in every weld." },
+  { title: "BENT.", sub: "Forging Strength", desc: "Cold-rolled steel, heated and bent into load-bearing curves. Engineered to hold the heaviest organs and keyboards without flex." },
+  { title: "WELDED.", sub: "Structural Integrity", desc: "MIG-welded joints, ground smooth, powder-coated for life. Each seam is tested beyond stage-abuse thresholds." },
+  { title: "THE FAIR\nDEAL.", sub: "The Promise", desc: "From Chennai\u2019s workshop floor to the world\u2019s greatest stages. We don\u2019t just build stands \u2014 we build trust for the instruments that define your art." },
+];
+
 const ScrollyTelling = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
   const images1Ref = useRef<HTMLImageElement[]>([]);
   const images2Ref = useRef<HTMLImageElement[]>([]);
-  
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
-  const [paneProgress, setPaneProgress] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState(0);
+  const [phaseOpacity, setPhaseOpacity] = useState(1);
+  const rafRef = useRef<number>(0);
 
-  const textPaneRef = useRef<HTMLDivElement>(null);
-
-  // PRELOAD LOGIC (Remains the same as before, ensuring arrays are pre-allocated)
+  /* ═══ PRELOAD 480 FRAMES ═══ */
   useEffect(() => {
-    let loadedCount = 0;
-    const framesPerSection = 240;
-    const totalImages = framesPerSection * 2;
-    images1Ref.current = new Array(framesPerSection);
-    images2Ref.current = new Array(framesPerSection);
+    let loaded = 0;
+    const PER = 240;
+    const TOTAL = PER * 2;
+    images1Ref.current = new Array(PER);
+    images2Ref.current = new Array(PER);
 
-    const loadImages = (section: number, imagesRef: React.MutableRefObject<HTMLImageElement[]>) => {
-      for (let i = 1; i <= framesPerSection; i++) {
+    const load = (sec: number, arr: React.MutableRefObject<HTMLImageElement[]>) => {
+      for (let i = 1; i <= PER; i++) {
         const img = new Image();
-        img.src = `/animations/section${section}/ezgif-frame-${padZero(i)}.jpg`;
-        const action = () => {
-          loadedCount++;
-          setLoadProgress(Math.floor((loadedCount / totalImages) * 100));
-          if (loadedCount === totalImages) {
+        img.src = `/animations/section${sec}/ezgif-frame-${padZero(i)}.jpg`;
+        const done = () => {
+          loaded++;
+          setLoadProgress(Math.floor((loaded / TOTAL) * 100));
+          if (loaded === TOTAL) {
             setImagesLoaded(true);
-            drawFrame(images1Ref.current[0]); 
           }
         };
-        img.onload = action;
-        img.onerror = action; 
-        imagesRef.current[i - 1] = img;
+        img.onload = done;
+        img.onerror = done;
+        arr.current[i - 1] = img;
       }
     };
-    loadImages(1, images1Ref);
-    loadImages(2, images2Ref);
+    load(1, images1Ref);
+    load(2, images2Ref);
   }, []);
 
-  const drawFrame = useCallback((img: HTMLImageElement | undefined) => {
-    if (!img || !canvasRef.current || !img.complete) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+  /* ═══ DRAW FRAME (Retina-aware cover-fit) ═══ */
+  const paintFrame = useCallback((img: HTMLImageElement | undefined) => {
+    if (!img || !canvasRef.current || !img.complete || !img.naturalWidth) return;
+    const cvs = canvasRef.current;
+    const ctx = cvs.getContext("2d");
     if (!ctx) return;
-    
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    
-    const parent = canvas.parentElement;
-    if (parent) {
-      const dpr = window.devicePixelRatio || 1;
-      const targetWidth = Math.floor(parent.clientWidth * dpr);
-      const targetHeight = Math.floor(parent.clientHeight * dpr);
-      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        ctx.resetTransform();
-        ctx.scale(dpr, dpr);
-      }
-    }
 
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = canvas.width / dpr;
-    const logicalHeight = canvas.height / dpr;
-    const canvasRatio = logicalWidth / logicalHeight;
-    const imgRatio = img.width / img.height || 16/9;
-    
-    let drawWidth = logicalWidth;
-    let drawHeight = logicalHeight;
-    let offsetX = 0;
-    let offsetY = 0;
+    const rect = cvs.getBoundingClientRect();
+    const pw = Math.floor(rect.width * dpr);
+    const ph = Math.floor(rect.height * dpr);
 
-    if (canvasRatio > imgRatio) {
-      drawHeight = logicalWidth / imgRatio;
-      offsetY = (logicalHeight - drawHeight) / 2;
-    } else {
-      drawWidth = logicalHeight * imgRatio;
-      offsetX = (logicalWidth - drawWidth) / 2;
+    if (cvs.width !== pw || cvs.height !== ph) {
+      cvs.width = pw;
+      cvs.height = ph;
     }
 
-    ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-    ctx.drawImage(img, Math.floor(offsetX), Math.floor(offsetY), Math.floor(drawWidth), Math.floor(drawHeight));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    const lw = rect.width;
+    const lh = rect.height;
+    const cr = lw / lh;
+    const ir = img.naturalWidth / img.naturalHeight;
+    let dw = lw, dh = lh, dx = 0, dy = 0;
+    if (cr > ir) { dh = lw / ir; dy = (lh - dh) / 2; }
+    else { dw = lh * ir; dx = (lw - dw) / 2; }
+
+    ctx.clearRect(0, 0, lw, lh);
+    ctx.drawImage(img, Math.floor(dx), Math.floor(dy), Math.floor(dw), Math.floor(dh));
   }, []);
 
-  // Split-Pane Scroll Listener
-  const handlePaneScroll = () => {
-    if (!textPaneRef.current || !imagesLoaded) return;
-    const { scrollTop, scrollHeight, clientHeight } = textPaneRef.current;
-    const progress = scrollTop / (scrollHeight - clientHeight);
-    setPaneProgress(progress);
-
-    const totalFrames = 480;
-    const frameIndex = Math.min(totalFrames - 1, Math.floor(progress * totalFrames));
-    
-    let targetImg: HTMLImageElement | undefined;
-    if (frameIndex < 240) {
-      targetImg = images1Ref.current[frameIndex];
-    } else {
-      targetImg = images2Ref.current[frameIndex - 240];
-    }
-    if (targetImg) drawFrame(targetImg);
-  };
-
+  /* ═══ SCROLL HANDLER ═══ */
   useEffect(() => {
-    const handleResize = () => {
-      if (imagesLoaded) {
-        const totalFrames = 480;
-        const frameIndex = Math.min(totalFrames - 1, Math.floor(paneProgress * totalFrames));
-        const img = frameIndex < 240 ? images1Ref.current[frameIndex] : images2Ref.current[frameIndex - 240];
-        drawFrame(img);
-      }
+    if (!imagesLoaded) return;
+    paintFrame(images1Ref.current[0]);
+
+    const onScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const rect = el.getBoundingClientRect();
+        const containerHeight = el.offsetHeight;
+        const viewportHeight = window.innerHeight;
+        const scrollableDistance = containerHeight - viewportHeight;
+        if (scrollableDistance <= 0) return;
+
+        const progress = Math.max(0, Math.min(1, -rect.top / scrollableDistance));
+
+        // Drive frame (0-479)
+        const frame = Math.min(479, Math.floor(progress * 480));
+        const img = frame < 240
+          ? images1Ref.current[frame]
+          : images2Ref.current[frame - 240];
+        if (img) paintFrame(img);
+
+        // Drive text phase (6 phases across 0→1)
+        const phaseFloat = progress * 6;
+        const phase = Math.min(5, Math.floor(phaseFloat));
+        const phaseProgress = phaseFloat - phase;
+        setCurrentPhase(phase);
+
+        // Fade: in 0→0.15, hold 0.15→0.75, out 0.75→1.0
+        let opacity = 1;
+        if (phaseProgress < 0.15) opacity = phaseProgress / 0.15;
+        else if (phaseProgress > 0.75) opacity = 1 - (phaseProgress - 0.75) / 0.25;
+        setPhaseOpacity(opacity);
+      });
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [imagesLoaded, drawFrame, paneProgress]);
 
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [imagesLoaded, paintFrame]);
+
+  /* ═══ RESIZE ═══ */
+  useEffect(() => {
+    const fn = () => { if (imagesLoaded) paintFrame(images1Ref.current[0]); };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, [imagesLoaded, paintFrame]);
+
+  const phase = PHASES[currentPhase] || PHASES[0];
+
+  /* ═══════════ RENDER ═══════════ */
   return (
-    <div className="relative w-full h-[100svh] bg-black flex flex-col lg:flex-row overflow-hidden shadow-2xl">
-      
-      {/* Canvas Pane - 50% Desktop, 50% Mobile */}
-      <div className="w-full lg:w-1/2 h-1/2 lg:h-full relative overflow-hidden bg-black border-b lg:border-b-0 lg:border-r border-white/5">
-        <canvas ref={canvasRef} className="w-full h-full object-cover" />
-        
-        {/* Cinematic Vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50" />
+    <section
+      ref={containerRef}
+      className="relative w-full bg-black"
+      style={{ height: "600vh" }}
+    >
+      {/* Sticky full-screen viewport — 100svh for mobile browser bar compat */}
+      <div
+        className="sticky top-0 left-0 w-full overflow-hidden"
+        style={{ height: "100svh" }}
+      >
 
+        {/* Canvas background — fills viewport */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full"
+          style={{ display: "block", zIndex: 0 }}
+        />
+
+        {/* Cinematic vignette — vertical */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            zIndex: 2,
+            background: "linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 45%, rgba(0,0,0,0.45) 100%)",
+          }}
+        />
+        {/* Cinematic vignette — horizontal (left side for text readability) */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            zIndex: 2,
+            background: "linear-gradient(to right, rgba(0,0,0,0.65) 0%, transparent 60%)",
+          }}
+        />
+
+        {/* ── Text overlay ── */}
+        {/* 
+          Desktop: vertically centered (items-center)
+          Mobile: positioned toward bottom-third to avoid navbar + leave room for instrument visual 
+        */}
+        <div
+          className="absolute inset-0 flex items-end sm:items-center pointer-events-none"
+          style={{
+            zIndex: 10,
+            paddingLeft: "clamp(20px, 6vw, 10%)",
+            paddingRight: "clamp(20px, 6vw, 10%)",
+            paddingBottom: "clamp(60px, 12vh, 120px)",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "640px",
+              width: "100%",
+              opacity: phaseOpacity,
+              transform: `translateY(${(1 - phaseOpacity) * 25}px)`,
+              transition: "opacity 0.15s ease-out, transform 0.15s ease-out",
+            }}
+          >
+            {/* Subtitle label */}
+            <p
+              className={inter.className}
+              style={{
+                fontSize: "clamp(0.65rem, 1.5vw, 0.875rem)",
+                textTransform: "uppercase",
+                letterSpacing: "0.2em",
+                color: "rgba(255,255,255,0.45)",
+                marginBottom: "clamp(8px, 2vw, 16px)",
+              }}
+            >
+              {phase.sub}
+            </p>
+
+            {/* Main heading */}
+            <h2
+              className={inter.className}
+              style={{
+                fontSize: "clamp(2.5rem, 12vw, 9rem)",
+                fontWeight: 700,
+                color: "#fff",
+                letterSpacing: "-0.04em",
+                lineHeight: 0.9,
+                textTransform: "uppercase",
+                textShadow: "0 4px 40px rgba(0,0,0,0.7)",
+                whiteSpace: "pre-line",
+              }}
+            >
+              {phase.title}
+            </h2>
+
+            {/* Description paragraph */}
+            <p
+              className={inter.className}
+              style={{
+                fontSize: "clamp(0.875rem, 2.2vw, 1.25rem)",
+                color: "rgba(255,255,255,0.6)",
+                marginTop: "clamp(12px, 3vw, 24px)",
+                fontWeight: 300,
+                lineHeight: 1.65,
+                maxWidth: "480px",
+                textShadow: "0 2px 16px rgba(0,0,0,0.5)",
+              }}
+            >
+              {phase.desc}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Scroll indicator (mobile hint) ── */}
+        <div
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none sm:hidden"
+          style={{
+            zIndex: 10,
+            opacity: phaseOpacity > 0.5 ? 0.4 : 0,
+            transition: "opacity 0.3s ease",
+          }}
+        >
+          <span
+            className={inter.className}
+            style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.25em", color: "rgba(255,255,255,0.4)" }}
+          >
+            Scroll
+          </span>
+          <div style={{ width: "1px", height: "20px", background: "rgba(255,255,255,0.3)" }} />
+        </div>
+
+        {/* ── Loading screen ── */}
         {!imagesLoaded && (
-          <div className={`${inter.className} absolute inset-0 flex flex-col items-center justify-center text-white/50 font-medium tracking-widest text-xs uppercase bg-black z-50`}>
-            <span>Engineering Experience...</span>
-            <span className="mt-4 text-[10px] text-white/20 tracking-[0.2em]">{loadProgress}%</span>
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black"
+            style={{ zIndex: 100 }}
+          >
+            <span
+              className={inter.className}
+              style={{
+                color: "rgba(255,255,255,0.4)",
+                fontSize: "clamp(10px, 2vw, 12px)",
+                textTransform: "uppercase",
+                letterSpacing: "0.3em",
+              }}
+            >
+              Loading Cinematic Experience
+            </span>
+            <div
+              style={{
+                width: "clamp(120px, 40vw, 192px)",
+                height: "2px",
+                background: "rgba(255,255,255,0.1)",
+                marginTop: "20px",
+                borderRadius: "99px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${loadProgress}%`,
+                  background: "rgba(255,255,255,0.6)",
+                  borderRadius: "99px",
+                  transition: "width 0.3s ease-out",
+                }}
+              />
+            </div>
+            <span
+              className={inter.className}
+              style={{
+                marginTop: "12px",
+                fontSize: "11px",
+                color: "rgba(255,255,255,0.2)",
+                letterSpacing: "0.2em",
+              }}
+            >
+              {loadProgress}%
+            </span>
           </div>
         )}
+
       </div>
-
-      {/* Text Pane - 50% Desktop, 50% Mobile - Independent Scrolling */}
-      <div 
-        ref={textPaneRef}
-        onScroll={handlePaneScroll}
-        className="w-full lg:w-1/2 h-1/2 lg:h-full overflow-y-auto overflow-x-hidden scroll-smooth bg-[#0a0a0a] selection:bg-white selection:text-black"
-      >
-        <div className="px-8 md:px-20 py-24 lg:py-48 flex flex-col gap-32">
-          
-          <section className="min-h-[60vh] flex flex-col justify-center">
-            <h2 className={`${inter.className} text-5xl md:text-7xl text-white font-bold tracking-tighter leading-tight uppercase`}>
-              MAPPED. <br />
-              <span className="text-white/40">METERED.</span>
-            </h2>
-            <p className={`${inter.className} text-white/50 text-xl mt-8 font-light max-w-xl leading-relaxed`}>
-              From the classical strings of the <span className="text-white/90">Veena</span> to the modern electric <span className="text-white/90">Guitar</span>, we map every resonance in our <span className="text-white/90">Chennai workshop</span>. Precision measured, locally engineered for the world&apos;s finest artists.
-            </p>
-          </section>
-
-          <section className="min-h-[60vh] flex flex-col justify-center">
-            <h2 className={`${inter.className} text-5xl md:text-7xl text-white font-bold tracking-tighter leading-tight uppercase`}>
-              BENT. <br />
-              <span className="text-white/40">WELDED.</span>
-            </h2>
-            <p className={`${inter.className} text-white/50 text-xl mt-8 font-light max-w-xl leading-relaxed`}>
-              Tough enough for the <span className="text-white/90">Violin</span>, sturdy enough for the <span className="text-white/90">Organ</span>. Our hand-welded steel curves are forged in <span className="text-white/90">Tamil Nadu</span> to protect your legacy with absolute zero compromise in stability.
-            </p>
-          </section>
-
-          <section className="min-h-[60vh] flex flex-col justify-center">
-            <h2 className={`${inter.className} text-5xl md:text-7xl text-white font-bold tracking-tighter leading-tight uppercase`}>
-              SILENT. <br />
-              <span className="text-white/40">SECURE.</span>
-            </h2>
-            <p className={`${inter.className} text-white/50 text-xl mt-8 font-light max-w-xl leading-relaxed`}>
-              Stage-ready for the world, built for the <span className="text-white/90">Chennai heat</span>. Vibration-free padding that keeps your performance pure and your instrument anchored, even on the tightest stages.
-            </p>
-          </section>
-
-          <section className="min-h-[60vh] flex flex-col justify-center pb-24">
-            <h2 className={`${inter.className} text-5xl md:text-7xl text-white font-bold tracking-tighter leading-tight uppercase`}>
-              THE FAIR DEAL. <br />
-              <span className="text-white/40">GUARANTEED.</span>
-            </h2>
-            <p className={`${inter.className} text-white/50 text-xl mt-8 font-light max-w-xl leading-relaxed`}>
-              A legacy of <span className="text-white/90">Chennai craftsmanship</span>. We don&apos;t just build stands; we build trust for the instruments that define your art. That is the <span className="text-white/90">Fair Deal Industries</span> promise.
-            </p>
-            <div className="mt-12 flex items-center gap-4">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] text-white/30 uppercase tracking-[0.4em]">Scroll to Explore Products</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-          </section>
-
-        </div>
-      </div>
-      
-    </div>
+    </section>
   );
 };
 
